@@ -20,6 +20,8 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 BLUE = (0,0,255)
+CIAN = (0,150,200)
+PINK = (255,0,128)
 
 BORDER = pygame.Rect(ANCHO//2 - 5, 0, 10, ALTO)
 
@@ -60,9 +62,9 @@ particulas = []
 
 # Crear partícula
 # Tiene que tener color, masa, coordenadas, velocidades y respecto a cada eje
-def crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),dx=0,dy=0, um = 10000000000000,q=1, color = RED):
+def crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),dx=0,dy=0, um = 1000000000000,q=1, color = RED,r = 7):
 
-    particulas.append({'x': x, 'y': y, 'dx': dx, 'dy': dy,'masa': um, 'color': color,'carga':q})
+    particulas.append({'x': x, 'y': y, 'dx': dx, 'dy': dy,'masa': um, 'color': color,'carga':q,'radio':r})
 
 # Mover partículas
 def mover_particula(particula):
@@ -71,37 +73,60 @@ def mover_particula(particula):
     for otraparticula in particulas:
         if otraparticula != particula:
             
-            
             #Calculo de la distancia euclidiana
             distx = otraparticula['x'] - particula['x']
             disty = otraparticula['y'] - particula['y']
             #Calculo de la distancia euclidiana
             distancia = math.sqrt(distx**2 + disty**2)
-
             
             
-            #Calculo fuerza de gravedad ejercida sobre la particula
-            if distancia > 40:
-
-                fgravedad = g * particula['masa']*otraparticula['masa']/distancia**2           
-                
-                fgravedadx = fgravedad * distx / distancia
-                fgravedady = fgravedad * disty / distancia
-                
-                particula['dx'] += fgravedadx / particula['masa']
-                particula['dy'] += fgravedady / particula['masa']
-                
-            #Calculo fuerzas electromagneticas
+            if distancia <= particula['radio'] + otraparticula['radio']:
             
-            if distancia > 22:
-
-                felectrica = (k * particula['carga']*otraparticula['carga'])/distancia**2
             
-                felectricax = felectrica * distx / distancia
-                felectricay = felectrica * disty / distancia
+                # Calcula las nuevas velocidades
+                v1x_new = (particula['dx'] * (particula['masa'] - otraparticula['masa']) + 2 * otraparticula['masa'] * otraparticula['dx']) / (particula['masa'] + otraparticula['masa'])
+                v1y_new = (particula['dy'] * (particula['masa'] - otraparticula['masa']) + 2 * otraparticula['masa'] * otraparticula['dy']) / (particula['masa'] + otraparticula['masa'])
                 
-                particula['dx'] -=felectricax / particula['masa']
-                particula['dy'] -=felectricay / particula['masa']
+                v2x_new = (otraparticula['dx'] * (otraparticula['masa'] - particula['masa']) + 2 * particula['masa'] * particula['dx']) / (otraparticula['masa'] + particula['masa'])
+                v2y_new = (otraparticula['dy'] * (otraparticula['masa'] - particula['masa']) + 2 * particula['masa'] * particula['dy']) / (otraparticula['masa'] + particula['masa'])
+                
+                # Actualiza las velocidades
+                particula['dx'], particula['dy'] = v1x_new, v1y_new
+                otraparticula['dx'], otraparticula['dy'] = v2x_new, v2y_new
+                
+                # Calcula la dirección de empuje para separar las partículas
+                dx_norm = distx / distancia
+                dy_norm = disty / distancia
+                
+                # Calcula la cantidad de superposición
+                overlap = (particula['radio'] + otraparticula['radio']) - distancia
+                
+                # Empuja las partículas en direcciones opuestas proporcionalmente a sus masas
+                correccion_total = overlap + 1  # Añade un pequeño buffer para asegurar la separación
+                particula['x'] -= dx_norm * (correccion_total * (otraparticula['masa'] / (particula['masa'] + otraparticula['masa'])))
+                particula['y'] -= dy_norm * (correccion_total * (otraparticula['masa'] / (particula['masa'] + otraparticula['masa'])))
+                otraparticula['x'] += dx_norm * (correccion_total * (particula['masa'] / (particula['masa'] + otraparticula['masa'])))
+                otraparticula['y'] += dy_norm * (correccion_total * (particula['masa'] / (particula['masa'] + otraparticula['masa'])))
+            
+            else:
+                
+                    fgravedad = g * particula['masa']*otraparticula['masa']/distancia**2           
+                    
+                    fgravedadx = fgravedad * distx / distancia
+                    fgravedady = fgravedad * disty / distancia
+                    
+                    particula['dx'] += fgravedadx / particula['masa']
+                    particula['dy'] += fgravedady / particula['masa']
+                    
+                    
+                    
+                    felectrica = (k * particula['carga']*otraparticula['carga'])/distancia**2
+                
+                    felectricax = felectrica * distx / distancia
+                    felectricay = felectrica * disty / distancia
+                    
+                    particula['dx'] -=felectricax / particula['masa']
+                    particula['dy'] -=felectricay / particula['masa']
                 
             
             
@@ -114,7 +139,7 @@ def mover_particula(particula):
     
     
     # Dibujar partícula
-    pygame.draw.circle(pantalla, particula['color'], (particula['x'], particula['y']),5,5)
+    pygame.draw.circle(pantalla, particula['color'], (particula['x'], particula['y']),particula['radio'],particula['radio'])
     #for i in range(10,15):
     #    for j in range(10,5,-2):
     #        pygame.draw.rect(pantalla, particula['color'], (particula['x']-5, particula['y']-5, i, j))
@@ -123,16 +148,14 @@ def mover_particula(particula):
 
 # Crear una nueva partícula
 
-#crear_particula(x=ANCHO//2,y=ALTO//2,um = mp, q = qp)
-#crear_particula(x=1000,y=ALTO//2, q = qe)
-#crear_particula(x=2000,y=ALTO//2, q = qe)
-#crear_particula(x=1500,y=180, q = qe)
+#crear_particula(x=ANCHO//2,y=ALTO//2,um = 2000000000000, q = qp, r=20)
+#crear_particula(x=0,y=ALTO//2, q = qe,r=200)
+#crear_particula(x=2800,y=ALTO//2, q = qe, color=BLUE,r=200)
+#crear_particula(x=1250,y=150, q = qe,color=WHITE)
 #crear_particula(color=BLUE,x=ANCHO//2,y=ALTO//2,um = 100000000000000)
-for i in range(0,30):
-    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = mp, q = qp)
-    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = me, q = qe,color=BLUE)
-    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = me, q = qe,color=BLUE)
-    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = me, q = qe,color=BLUE)
+for i in range(0,60):
+    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = mp, q = qp, r=1500, color=PINK)
+    crear_particula(x=random.randint(0,ANCHO),y=random.randint(0,ALTO),um = me, q = qe,color=CIAN)
 #crear_particula(x=1000,y=500, um=1000000000000,color=BLUE)
 
 #Bucle de la simulacion
@@ -159,7 +182,8 @@ while running:
         
     pantalla.fill(BLACK)
     
-    #pygame.draw.rect(pantalla,WHITE,(x,y,10,10))
+    
+    pygame.draw.rect(pantalla,WHITE,(x,y,10,10))
     
 
 
@@ -168,5 +192,5 @@ while running:
         mover_particula(particula)
     pygame.display.flip()
     
-    clock.tick(600)
+    clock.tick(720)
     
